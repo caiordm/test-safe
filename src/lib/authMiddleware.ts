@@ -1,7 +1,7 @@
 import { goto } from "$app/navigation";
 
 const authMiddleware = () => {
-  const accessToken = localStorage.getItem('access');
+  const accessToken = localStorage.getItem('accessToken');
   
   if (!accessToken) {
     alert("Por favor, faça o login.");

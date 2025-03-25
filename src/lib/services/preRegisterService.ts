@@ -82,7 +82,7 @@ export async function createPreRegister(preRegister: PreRegisterDetails): Promis
     });
 
     if (!res.ok) {
-        throw new Error('Erro ao cadastrar pré-registro');
+        throw new Error('Verifique se os campos de CPF e Telefone já existem, ou são inválidos.');
     }
 
     return await res.json() as PreRegisterDetails;
@@ -103,7 +103,7 @@ export async function updatePreRegister(preRegister: PreRegisterDetails): Promis
     });
 
     if (!res.ok) {
-        throw new Error('Erro ao cadastrar pré-registro');
+        throw new Error('Erro ao atualizar pré-registro');
     }
 
     return await res.json() as PreRegisterDetails;

@@ -9,12 +9,12 @@
       show = false;
       onClose();
     }
-  </script>
+  </script> 
   
   {#if show}
     <div class="fixed inset-0 flex items-center justify-center drop-shadow-2xl">
-      <div class="bg-white p-6 rounded-lg w-1/3">
-        <div class="w-full flex items-center justify-between pb-4">
+      <div class="bg-white p-3 rounded-lg w-10/12 lg:w-3/6">
+        <div class="w-full flex items-center justify-between">
             <h2 class="text-xl font-semibold">{title}</h2>
             <button class="cursor-pointer" on:click={closeModal} name="Fechar"> <IconX/> </button>
         </div>

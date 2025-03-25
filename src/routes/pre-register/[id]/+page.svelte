@@ -52,9 +52,9 @@
                 </div>
                 <div class="w-full flex flex-col gap-2">
                     <h3 class="text-xl">Procedimentos:</h3>
-                    <div class="w-full flex flew-wrap gap-4">
+                    <div class="w-full flex flex-col lg:flex-row flew-wrap gap-4">
                         {#each preRegister.procedures as proc }
-                        <div class="max-w-3/12 flex flex-col justify-between">
+                        <div class="w-full lg:max-w-3/12 flex flex-col justify-between">
                             <p><strong>Nome:</strong> {proc.procedure.name}</p>
                             <p><strong>Descrição:</strong> {proc.procedure.description}</p>
                             <p><strong>Cedente:</strong> {proc.procedure.assignor.fantasy_name}</p>

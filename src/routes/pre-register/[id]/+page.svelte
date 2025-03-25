@@ -1,35 +1,72 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { getPreRegisterDetails, type PreRegisterDetails } from "$lib/services/preRegisterService";
+    import { getPreRegisterDetails,type PreRegisterDetails } from "$lib/services/preRegisterService";
+    import Header from "../../../components/Header.svelte";
+    import { onMount } from "svelte";
+    import authMiddleware from "$lib/authMiddleware";
+    import { page } from "$app/stores";
+    import { get } from "svelte/store";
 
-  export let params: { id: string };
+    let preRegister: PreRegisterDetails;
+    let isLoading = true;
+    let errorMessage: string | null = null;
 
-  let details: PreRegisterDetails | null = null;
-  let error: string | null = null;
+    async function fetchPreRegister(id: string) {
+        try {
+           const response = await getPreRegisterDetails(Number(id));
+           preRegister = response;
+        } catch (error) {
+            alert(error)
+        } finally {
+            isLoading = false;
+        }
+    }
 
-  onMount(async () => {
-      try {
-          details = await getPreRegisterDetails(params.id);
-      } catch (err) {
-          error = (err as Error).message;
-      }
-  });
+    onMount(() => {
+        authMiddleware();
+        const params = get(page).params;
+        if (params.id) {
+            fetchPreRegister(params.id);
+        } else {
+            isLoading = false;
+            errorMessage = "ID não encontrado na URL.";
+        }
+    });
 </script>
 
+<div class="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
 
 <section class="w-full">
-  <div class="w-full h-screen px-8 py-4">
-      <div class="w-full flex items-center justify-between py-8">
-          <h1 class="text-3xl">Pré Registros</h1>
-          <button class="p-4 bg-orange-500 text-white rounded-full">Novo pré-registro</button>
-      </div>
-      <div class="w-full h-auto flex border border-gray-200 rounded-2xl p-4">
-          {#if error}
-              <p class="error">{error}</p>
-          {:else if details}
-              <h1>Pré-registro de {details.name}</h1>
-              <p>Email: {details.email}</p>
-          {/if}
-      </div>
-  </div>
+    <Header></Header>
+    <div class="w-full h-screen px-8 py-4">
+        {#if isLoading}
+            <span>Carregando...</span>
+        {:else}
+            <div class="w-full flex items-center justify-between py-2">
+                <h2 class="text-xl">Detalhes do Pré-Registro</h2>
+            </div>
+            <div class="w-full flex flex-col items-start gap-2 flex-wrap">
+                <div class="-w-4/5 flex gap-4 justify-between">
+                    <p><strong>Nome:</strong> {preRegister.name}</p>
+                    <p><strong>Email:</strong> {preRegister.email}</p>
+                    <p><strong>Cedente:</strong> {preRegister.assignor.fantasy_name}</p>
+                </div>
+                <div class="w-full flex flex-col gap-2">
+                    <h3 class="text-xl">Procedimentos:</h3>
+                    <div class="w-full flex flew-wrap gap-4">
+                        {#each preRegister.procedures as proc }
+                        <div class="max-w-3/12 flex flex-col justify-between">
+                            <p><strong>Nome:</strong> {proc.procedure.name}</p>
+                            <p><strong>Descrição:</strong> {proc.procedure.description}</p>
+                            <p><strong>Cedente:</strong> {proc.procedure.assignor.fantasy_name}</p>
+                            <p><strong>Preço:</strong> {proc.procedure.price}</p>
+                            <p><strong>Quantidade:</strong> {proc.quantity}</p>
+                        </div>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+    </div>
 </section>
+
+

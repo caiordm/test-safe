@@ -1,49 +1,238 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { getPreRegisterList, type PreRegisterDetails } from "$lib/services/preRegisterService";
+import { onMount } from "svelte";
+import authMiddleware from "$lib/authMiddleware";
+import { getPreRegisterList, createPreRegister, updatePreRegister ,type PreRegisterDetails, getAssignors, type Procedure, getProcedures } from "$lib/services/preRegisterService";
+import Header from "../../components/Header.svelte";
+import Modal from "../../components/Modal.svelte";
+import { IconDetails, IconEdit } from "@tabler/icons-svelte";
+import { goto } from "$app/navigation";
+import type { Assignor } from "$lib/services/authService";
 
-    let preRegisterList: PreRegisterDetails[] = [];
-    let error: string | null = null;
+let preRegisterList: PreRegisterDetails[] = [];
+let assignors: Assignor[] = [];
+let procedures: Procedure[] = [];
 
-    onMount(async () => {
-        try {
-            preRegisterList = await getPreRegisterList();
-        } catch (err) {
-            error = (err as Error).message;
+
+let error: string | null = null;
+let currentPage = 1;
+const itemsPerPage = 5;
+let totalPages = 1;
+let showModal = false;
+let isEditing = false;
+let isLoading = true; 
+let searchQuery = "";
+
+let newPreRegister: Partial<PreRegisterDetails> = {
+    id: 0,
+    name: "",
+    email: "",
+    cpf: "",
+    phone: "",
+    status: "",
+    procedureFic: 0,
+    quantityProc: 0
+};
+
+async function fetchPreRegisterList(query = "") {
+    try {
+        const response = await getPreRegisterList(query);
+        preRegisterList = response;
+        totalPages = Math.ceil(preRegisterList.length / itemsPerPage);
+        currentPage = 1;
+    } catch (err) {
+        error = (err as Error).message;
+    } finally {
+        isLoading = false;
+    }
+}
+
+async function fetchAssignors() {
+    try {
+        const response = await getAssignors();
+        assignors = response;
+    } catch (err) {
+        error = (err as Error).message;
+    }
+}
+
+async function fetchProcedures() {
+    try {
+        const response = await getProcedures();
+        procedures = response;
+    } catch (err) {
+        error = (err as Error).message;
+    }
+}
+
+onMount(() => {
+    authMiddleware();
+    console.log("onmount aaqui");
+    fetchPreRegisterList();
+    fetchAssignors();
+    fetchProcedures();
+});
+
+function searchPreRegister() {
+    fetchPreRegisterList(`?q=${searchQuery}`);
+}
+
+async function submitPreRegister() {
+    try {
+        let response;
+        if (isEditing) {
+            await updatePreRegister(newPreRegister as PreRegisterDetails);
+        } else {
+            await createPreRegister(newPreRegister as PreRegisterDetails);
         }
-    });
+        alert("Feito com sucesso!")
+        await fetchPreRegisterList();
+        showModal = false;
+        resetForm();
+    } catch (err) {
+        error = (err as Error).message;
+    }
+}
+
+function openEditModal(item: PreRegisterDetails) {
+    newPreRegister = { ...item };
+    isEditing = true;
+    showModal = true;
+}
+
+function openCreateModal() {
+    resetForm();
+    isEditing = false;
+    showModal = true;
+}
+
+function resetForm() {
+    newPreRegister = { name: "", email: "", cpf: "", phone: "", status: "pending" };
+}
+
+function preRegisterDetails(preRegister: PreRegisterDetails) {
+    goto(`/pre-register/${preRegister.id}`)
+}
+
+function preRegisterStatus(status: string){
+if(status === 'pending') return "Pendente"; 
+if(status === 'rejected') return "Rejeitado"; 
+if(status === 'registered') return "Registrado"; 
+}
+
+$: paginatedItems = preRegisterList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+function nextPage() {
+    if (currentPage < totalPages) currentPage++;
+}
+
+function prevPage() {
+    if (currentPage > 1) currentPage--;
+}
 </script>
 
+<div class="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
 
 <section class="w-full">
+    <Header></Header>
     <div class="w-full h-screen px-8 py-4">
         <div class="w-full flex items-center justify-between py-8">
             <h1 class="text-3xl">Pré Registros</h1>
-            <button class="p-4 bg-orange-500 text-white rounded-full">Novo pré-registro</button>
+            <div class="w-1/2 flex items-center justify-center gap-1">
+                <input type="text" bind:value={searchQuery} onkeydown={(e) => e.key === "Enter" && searchPreRegister()}  placeholder="Procure por nome, email, telefone, cpf etc..." class="w-3/6 border text-sm text-gray-600 py-1 px-2 bg-gray-50 border-gray-300 rounded-lg">
+                <button onclick={searchPreRegister} class="py-1 px-2 rounded-lg bg-orange-600 text-sm text-white cursor-pointer">Pesquisar</button>
+            </div>
+            <button onclick={openCreateModal} class="px-4 py-2 cursor-pointer bg-orange-500 text-white rounded-full">Novo pré-registro</button>
         </div>
-        <div class="w-full h-auto flex border border-gray-200 rounded-2xl p-4">
-            <table class="table-fixed border-collapse w-full text-lg leading-12">
-                <thead class="border-b border-gray-200">
-                  <tr>
-                    <th>Nome</th>
-                    <th>Email</th>
-                    <th>CPF</th>
-                    <th>Telefone</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each preRegisterList as item}
-                    <tr class="border-b border-gray-200">
-                      <td>{item.name}</td>
-                      <td>{item.email}</td>
-                      <td>{item.cpf}</td>
-                      <td>{item.phone}</td>
-                      <td>{item.status}</td>
+        {#if isLoading}
+            <p class="text-2xl">Carregando...</p>
+        {:else}
+            <div class="w-full h-auto flex border bg-gray-50 border-gray-200 rounded-2xl px-4 py-2">
+                <table class="table-fixed border-collapse w-full">
+                    <thead class="border-b border-gray-200 leading-10">
+                    <tr>
+                        <th class="font-medium text-start">Nome</th>
+                        <th class="font-medium text-start">Email</th>
+                        <th class="font-medium text-start">CPF</th>
+                        <th class="font-medium text-start">Telefone</th>
+                        <th class="font-medium text-start">Cedente</th>
+                        <th class="font-medium text-start">Status</th>
+                        <th class="font-medium text-start">Ações</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    {#each paginatedItems as item}
+                            <tr class="border-t border-gray-200 leading-10">
+                                <td>{item.name}</td>
+                                <td>{item.email}</td>
+                                <td>{item.cpf}</td>
+                                <td>{item.phone}</td>
+                                <td>{item.assignor.fantasy_name}</td>
+                                <td>{preRegisterStatus(item.status)}</td>
+                                <td class="h-full flex items-center justify-start gap-1">
+                                    <button onclick={() => openEditModal(item)} class="flex items-center gap-1 cursor-pointer text-sm py-1 px-2 rounded-lg bg-yellow-600 text-yellow-400">Editar <IconEdit size="20"/></button>
+                                    <button onclick={() => preRegisterDetails(item)} class="flex items-center gap-1 cursor-pointer text-sm py-1 px-2 rounded-lg bg-blue-600 text-blue-200">Detalhes <IconDetails size="20"/></button>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="w-full flex items-center justify-center text-sm gap-4 mt-4">
+                <button 
+                    class="p-2 bg-gray-200 text-black rounded-lg disabled:opacity-50 cursor-pointer"
+                    onclick={prevPage} 
+                    disabled={currentPage === 1}
+                >
+                    Anterior
+                </button>
+
+                <span class="text-gray-500">Página {currentPage} de {totalPages}</span>
+
+                <button 
+                    class="p-2 bg-gray-200 text-black rounded-lg disabled:opacity-50 cursor-pointer"
+                    onclick={nextPage} 
+                    disabled={currentPage === totalPages}
+                >
+                    Próxima
+                </button>
+            </div>
+
+            <!-- Modal para Cadastro/Edição -->
+            <Modal title={isEditing ? "Editar Pré-Registro" : "Novo Pré-Registro"} bind:show={showModal}>
+                <form onsubmit={submitPreRegister} class="flex flex-col gap-2">
+                    <label for="name">Nome:</label>
+                    <input type="text" name="name" bind:value={newPreRegister.name} placeholder="Nome" class="p-2 border border-gray-300 rounded-2xl" required />
+                    <label for="email">Email:</label>
+                    <input type="email" name="email"  bind:value={newPreRegister.email} placeholder="Email" class="p-2 border border-gray-300 rounded-2xl" required />
+                    <label for="cpf">CPF:</label>
+                    <input type="text" name="cpf" bind:value={newPreRegister.cpf} placeholder="CPF (apenas números)" class="p-2 border border-gray-300 rounded-2xl" minlength="11" maxlength="11" required />
+                    <label for="phone">Telefone:</label>
+                    <input type="text" name="phone" bind:value={newPreRegister.phone} placeholder="Telefone (ex: 81988776655)" class="p-2 border border-gray-300 rounded-2xl" minlength="11" maxlength="11" required />
+                    {#if !isEditing}
+                        <label for="procedure">Procedimento:</label>
+                        <select class="p-2 border border-gray-300 rounded-2xl" name="procedure" id="procedure" bind:value={newPreRegister.procedureFic}>
+                            {#each procedures as proc}
+                                <option value={proc.id}>{proc.name}</option>
+                            {/each}
+                        </select>
+                        <label for="quantity">Quantidade:</label>
+                        <input type="number" min="1" bind:value={newPreRegister.quantityProc} placeholder="Quantidade" class="p-2 border border-gray-300 rounded-2xl"/>
+                    {/if}
+
+                    {#if isEditing}
+                    <label for="status">Status:</label>
+                    <select class="p-2 border border-gray-300 rounded-2xl" name="status" id="status" bind:value={newPreRegister.status}>
+                        <option value="pending">Pendente</option>
+                        <option value="rejected">Rejeitado</option>
+                        <option value="registered">Registrado</option>
+                    </select>
+                    {/if}
+                    <button type="submit" class="w-full p-2 rounded-2xl bg-blue-700 text-white cursor-pointer">
+                        {isEditing ? "Salvar Alterações" : "Cadastrar"}
+                    </button>
+                </form>
+            </Modal>
+        {/if}
     </div>
 </section>

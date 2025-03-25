@@ -1,8 +1,16 @@
+export interface Assignor {
+    id: number,
+    fantasy_name: string,
+    cnpj: string,
+    email: string,
+    phone: string
+}
+
 export interface AuthResponse {
-    access_token: string,
-    refresh_token: string,
+    access: string,
+    refresh: string,
     username: string,
-    assignor: object
+    assignor: Assignor
 }
 
 
@@ -14,20 +22,24 @@ export async function login (username: string, password: string): Promise<AuthRe
         mode: 'cors'
     });
     
+    const data = await res.json();
+
     if(!res.ok) {
-        throw new Error("Incapaz de fazer o login")
+        throw new Error(data.detail)
     }
 
-    console.log("RES.JSON>",res.json())
-    const data = await res.json() as AuthResponse;
-    console.log("DATA.ASSIGNOR>", data.assignor)
-    localStorage.setItem('accessToken', data.access_token);
-    localStorage.setItem('refreshToken', data.refresh_token);
 
-    return data;
+    console.log("RES.JSON>", data)
+
+    localStorage.setItem('accessToken', data.access);
+    localStorage.setItem('refreshToken', data.refresh);
+    localStorage.setItem('fantasyName', data.assignor.fantasy_name)
+
+    return data as AuthResponse;
 }
 
 export function logout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('fantasyName')
 }
